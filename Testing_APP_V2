@@ -1,0 +1,242 @@
+//sendAppnameActivity.java
+
+package com.example.testingapp;
+
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
+import android.icu.text.IDNA;
+import android.media.Image;
+import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+public class sendAppnameActivity extends AppCompatActivity {
+
+    private ListView listView;
+    private List<String> listItem;
+    PackageManager pm;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_send_appname_activity);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+            }
+        });
+        //创建时initiate
+        pm = this.getPackageManager();
+        listView = (ListView) findViewById(R.id.listView);
+        listItem= new ArrayList<>();
+    }
+
+    private int mCount;
+
+    //输入框文字处理
+    public void displayMessage(View view){
+        EditText editText = (EditText) findViewById(R.id.add_new);
+        String package_name = editText.getText().toString();
+        listItem.add(package_name);
+
+        MyAdapter sAdapter = new MyAdapter(this);
+        listView.setAdapter(sAdapter);
+        sAdapter.notifyDataSetChanged();
+
+    }
+    public class MyAdapter extends BaseAdapter{
+        private LayoutInflater inflater;
+
+        public MyAdapter(Context context){
+            super();
+            this.inflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount() {
+            return listItem.size();
+        }
+        public View getView(int position, View convertView, ViewGroup viewGroup) {
+            ViewHolder holder;
+            InfoHolder info_holder = new InfoHolder(position);
+            if (convertView == null) {
+                convertView = inflater.inflate(R.layout.fragment_list_, null);
+                holder = new ViewHolder();
+                holder.packageName = (TextView) convertView
+                        .findViewById(R.id.packageName);
+                holder.version = (TextView) convertView
+                        .findViewById(R.id.version);
+                holder.label = (TextView) convertView
+                        .findViewById(R.id.label);
+                holder.icon = (ImageView)convertView.findViewById(R.id.image);
+                convertView.setTag(holder);
+
+            } else {
+                holder = (ViewHolder) convertView.getTag();
+            }
+
+            holder.icon.setImageDrawable(info_holder.getIcon());
+            holder.packageName.setText(info_holder.getPackageName());
+            holder.version.setText(info_holder.getVersion());
+            holder.label.setText(info_holder.getLabel());
+
+            return convertView;
+        }
+        public Object getItem(int position) {
+            return listItem.get(position);
+        }
+
+        public long getItemId(int position) {
+            return position;
+        }
+        private class InfoHolder{
+            PackageInfo info;
+            String version = "";
+            String label = "";
+            ApplicationInfo app_info;
+            Drawable icon;
+            String packageName;
+            public InfoHolder(int position){
+                this.packageName = listItem.get(position);
+                //查找相关文件
+                boolean ifRecorded = false;
+                switch (packageName){
+                    case "com.xiaomi.vip":
+                        ifRecorded = true;
+                    case "com.miui.cleanmaster":
+                        ifRecorded = true;
+                    case "com.miui.cloudservice":
+                        ifRecorded = true;
+                }
+                if(ifRecorded == true){
+                    try {
+                        info = pm.getPackageInfo(packageName, 0);
+                        version = info.versionName;
+                        app_info = info.applicationInfo;
+                        label = pm.getApplicationLabel(app_info).toString();
+                        icon =pm.getApplicationIcon(app_info);
+                    }catch (PackageManager.NameNotFoundException e) {
+                        e.printStackTrace();}
+                }else{
+                    version += "Not Found";
+                    label += "Not Found";
+                }
+            }
+            public Drawable getIcon(){return icon;}
+            public String getLabel(){return label;}
+            public String getVersion(){return version;}
+            public String getPackageName(){return packageName;}
+        }
+
+        private class ViewHolder{
+            TextView packageName;
+            TextView version;
+            TextView label;
+            ImageView icon;
+        }
+    }
+}
+
+//fragment_send_appname_activity.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.testingapp.send_appname_activityFragment"
+    tools:showIn="@layout/activity_send_appname_activity">
+
+    <LinearLayout
+        android:id="@+id/two_piece"
+        android:orientation="horizontal"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent">
+        <EditText
+            android:id="@+id/add_new"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:hint="@string/add_new"/>
+        <Button
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="@string/add"
+            android:onClick="displayMessage"/>
+    </LinearLayout>
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/two_piece">
+    </ListView>
+
+</RelativeLayout>
+
+
+//fragment_list.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.testingapp.List_ActivityFragment"
+    tools:showIn="@layout/activity_list_">
+
+        <ImageView
+            android:id="@+id/image"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_toRightOf="@+id/image"
+            android:layout_marginLeft="10dp">
+            <TextView
+                android:id="@+id/label"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content" />
+            <TextView
+                android:id="@+id/packageName"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content" />
+            <TextView
+                android:id="@+id/version"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"/>
+        </LinearLayout>
+</RelativeLayout>
+
