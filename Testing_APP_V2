@@ -7,39 +7,38 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
-import android.icu.text.IDNA;
-import android.media.Image;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
-import android.widget.EditText;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
-public class sendAppnameActivity extends AppCompatActivity {
-
-    private ListView listView;
-    private List<String> listItem;
+public class List_Activity extends AppCompatActivity {
+    List<PackageInfo> allInfo;
+    List<PackageInfo> installedInfo;
     PackageManager pm;
+    ListView listView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_send_appname_activity);
+        setContentView(R.layout.activity_list_);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -51,26 +50,47 @@ public class sendAppnameActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
-        //创建时initiate
-        pm = this.getPackageManager();
+        pm = getPackageManager();
         listView = (ListView) findViewById(R.id.listView);
-        listItem= new ArrayList<>();
+        allInfo = pm.getInstalledPackages(pm.GET_META_DATA);
+        installedInfo = pm.getInstalledPackages(0);
+
+        try {
+            installedInfo.clear();
+            for (int n = 0; n < allInfo.size(); n++)
+            {
+
+                PackageInfo PackInfo = allInfo.get(n);
+                if (((PackInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) != true)
+                //check weather it is system app or user installed app
+                {
+                    try
+                    {
+                        installedInfo.add(allInfo.get(n)); // add in 2nd list if it is user installed app
+                        Collections.sort(installedInfo,new Comparator<PackageInfo>()
+                                // this will sort App list on the basis of app name
+                        {
+                            public int compare(PackageInfo o1,PackageInfo o2)
+                            {
+                                return o1.applicationInfo.loadLabel(getPackageManager()).toString()
+                                        .compareToIgnoreCase(o2.applicationInfo.loadLabel(getPackageManager())
+                                                .toString());// compare and return sorted packagelist.
+                            }
+                        });
+
+                    } catch (NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        MyAdapter Adapter = new MyAdapter(this);
+        listView.setAdapter(Adapter);
+
     }
-
-    private int mCount;
-
-    //输入框文字处理
-    public void displayMessage(View view){
-        EditText editText = (EditText) findViewById(R.id.add_new);
-        String package_name = editText.getText().toString();
-        listItem.add(package_name);
-
-        MyAdapter sAdapter = new MyAdapter(this);
-        listView.setAdapter(sAdapter);
-        sAdapter.notifyDataSetChanged();
-
-    }
-    public class MyAdapter extends BaseAdapter{
+    public class MyAdapter extends BaseAdapter {
         private LayoutInflater inflater;
 
         public MyAdapter(Context context){
@@ -80,9 +100,10 @@ public class sendAppnameActivity extends AppCompatActivity {
 
         @Override
         public int getCount() {
-            return listItem.size();
+            return installedInfo.size();
         }
         public View getView(int position, View convertView, ViewGroup viewGroup) {
+            CheckBox checkBox;
             ViewHolder holder;
             InfoHolder info_holder = new InfoHolder(position);
             if (convertView == null) {
@@ -95,6 +116,13 @@ public class sendAppnameActivity extends AppCompatActivity {
                 holder.label = (TextView) convertView
                         .findViewById(R.id.label);
                 holder.icon = (ImageView)convertView.findViewById(R.id.image);
+                //convertView.findViewById(R.id.checkbox).setVisibility(View.VISIBLE);
+//                checkBox= (CheckBox) findViewById(R.id.checkbox);
+//                checkBox.setOnCheckedChangeListener(myCheckChangeList);
+//                checkBox.setTag(position);
+//                checkBox.setChecked(position.ischeckedflag);
+
+
                 convertView.setTag(holder);
 
             } else {
@@ -108,8 +136,9 @@ public class sendAppnameActivity extends AppCompatActivity {
 
             return convertView;
         }
+
         public Object getItem(int position) {
-            return listItem.get(position);
+            return installedInfo.get(position);
         }
 
         public long getItemId(int position) {
@@ -122,36 +151,30 @@ public class sendAppnameActivity extends AppCompatActivity {
             ApplicationInfo app_info;
             Drawable icon;
             String packageName;
-            public InfoHolder(int position){
-                this.packageName = listItem.get(position);
-                //查找相关文件
-                boolean ifRecorded = false;
-                switch (packageName){
-                    case "com.xiaomi.vip":
-                        ifRecorded = true;
-                    case "com.miui.cleanmaster":
-                        ifRecorded = true;
-                    case "com.miui.cloudservice":
-                        ifRecorded = true;
-                }
-                if(ifRecorded == true){
-                    try {
-                        info = pm.getPackageInfo(packageName, 0);
-                        version = info.versionName;
-                        app_info = info.applicationInfo;
-                        label = pm.getApplicationLabel(app_info).toString();
-                        icon =pm.getApplicationIcon(app_info);
-                    }catch (PackageManager.NameNotFoundException e) {
-                        e.printStackTrace();}
-                }else{
-                    version += "Not Found";
-                    label += "Not Found";
-                }
+            public InfoHolder(int position) {
+                this.info = installedInfo.get(position);
+                packageName = info.packageName;
+                version = info.versionName;
+                app_info = info.applicationInfo;
+                label = pm.getApplicationLabel(app_info).toString();
+                icon = pm.getApplicationIcon(app_info);
             }
-            public Drawable getIcon(){return icon;}
-            public String getLabel(){return label;}
-            public String getVersion(){return version;}
-            public String getPackageName(){return packageName;}
+            public Drawable getIcon() {
+                return icon;
+            }
+
+            public String getLabel() {
+                return label;
+            }
+
+            public String getVersion() {
+                return version;
+            }
+
+            public String getPackageName() {
+                return packageName;
+            }
+        }
         }
 
         private class ViewHolder{
@@ -160,10 +183,16 @@ public class sendAppnameActivity extends AppCompatActivity {
             TextView label;
             ImageView icon;
         }
-    }
+
+
+
+
+
 }
 
+
 //fragment_send_appname_activity.xml
+
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -211,8 +240,8 @@ public class sendAppnameActivity extends AppCompatActivity {
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="com.example.testingapp.List_ActivityFragment"
-    tools:showIn="@layout/activity_list_">
+    tools:context="com.example.testingapp.send_appname_activityFragment"
+    tools:showIn="@layout/activity_send_appname_activity">
 
         <ImageView
             android:id="@+id/image"
@@ -238,5 +267,50 @@ public class sendAppnameActivity extends AppCompatActivity {
                 android:layout_height="wrap_content"
                 android:layout_width="wrap_content"/>
         </LinearLayout>
+        <CheckBox
+            android:id="@+id/checkbox"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:focusable="false" />
+</RelativeLayout>
+
+//list_view_layout.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.testingapp.List_ActivityFragment"
+    tools:showIn="@layout/activity_list_">
+
+    <LinearLayout
+        android:id="@+id/two_piece"
+        android:orientation="horizontal"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent">
+        <EditText
+            android:id="@+id/add_new"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:hint="@string/add_new"/>
+        <Button
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="@string/search"
+            android:onClick="displayMessage"/>
+    </LinearLayout>
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/two_piece">
+    </ListView>
+
 </RelativeLayout>
 
