@@ -1,0 +1,323 @@
+//List_Activity.java
+package com.example.testingapp;
+
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.CheckBox;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+public class List_Activity extends AppCompatActivity {
+    List<PackageInfo> allInfo;
+    List<PackageInfo> installedInfo;
+    List<Boolean>isCheckedTag;
+    PackageManager pm;
+    ListView listView;
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_list_);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+            }
+        });
+        pm = getPackageManager();
+        listView = (ListView) findViewById(R.id.listView);
+        allInfo = pm.getInstalledPackages(pm.GET_META_DATA);
+        installedInfo = pm.getInstalledPackages(0);
+
+
+        try {
+            installedInfo.clear();
+            for (int n = 0; n < allInfo.size(); n++)
+            {
+
+                PackageInfo PackInfo = allInfo.get(n);
+                if (((PackInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) != true)
+                //check weather it is system app or user installed app
+                {
+                    try
+                    {
+                        installedInfo.add(allInfo.get(n)); // add in 2nd list if it is user installed app
+                        Collections.sort(installedInfo,new Comparator<PackageInfo>()
+                                // this will sort App list on the basis of app name
+                        {
+                            public int compare(PackageInfo o1,PackageInfo o2)
+                            {
+                                return o1.applicationInfo.loadLabel(getPackageManager()).toString()
+                                        .compareToIgnoreCase(o2.applicationInfo.loadLabel(getPackageManager())
+                                                .toString());// compare and return sorted packagelist.
+                            }
+                        });
+
+                    } catch (NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        isCheckedTag = new ArrayList<>();
+        for(int i=0; i< installedInfo.size();i++){
+            isCheckedTag.add(false);}
+        MyAdapter Adapter = new MyAdapter(this);
+        listView.setAdapter(Adapter);
+
+    }
+    public class MyAdapter extends BaseAdapter {
+        private LayoutInflater inflater;
+
+        public MyAdapter(Context context){
+            super();
+            this.inflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount() {
+            return installedInfo.size();
+        }
+        public View getView(final int position, View convertView, ViewGroup viewGroup) {
+            final ViewHolder holder;
+            final InfoHolder info_holder = new InfoHolder(position);
+            if (convertView == null) {
+                convertView = inflater.inflate(R.layout.fragment_list_, null);
+                holder = new ViewHolder();
+                holder.packageName = (TextView) convertView
+                        .findViewById(R.id.packageName);
+                holder.version = (TextView) convertView
+                        .findViewById(R.id.version);
+                holder.label = (TextView) convertView
+                        .findViewById(R.id.label);
+                holder.icon = (ImageView)convertView.findViewById(R.id.image);
+                holder.checkBox= (CheckBox) convertView.findViewById(R.id.checkbox);
+
+            } else {
+                holder = (ViewHolder) convertView.getTag();
+            }
+
+            MyClickListener mListener = new MyClickListener();
+            mListener.position = position;
+            holder.checkBox.setOnClickListener(mListener);
+            holder.checkBox.setChecked(isCheckedTag.get(position));
+
+            holder.icon.setImageDrawable(info_holder.getIcon());
+            holder.packageName.setText(info_holder.getPackageName());
+            holder.version.setText(info_holder.getVersion());
+            holder.label.setText(info_holder.getLabel());
+
+            convertView.setTag(holder);
+            return convertView;
+        }
+
+        public Object getItem(int position) {
+            return installedInfo.get(position);
+        }
+
+        public long getItemId(int position) {
+            return position;
+        }
+
+
+        private class InfoHolder{
+            PackageInfo info;
+            String version = "";
+            String label = "";
+            ApplicationInfo app_info;
+            Drawable icon;
+            String packageName;
+            public InfoHolder(int position) {
+                this.info = installedInfo.get(position);
+                packageName = info.packageName;
+                version = info.versionName;
+                app_info = info.applicationInfo;
+                label = pm.getApplicationLabel(app_info).toString();
+                icon = pm.getApplicationIcon(app_info);
+            }
+            public Drawable getIcon() {
+                return icon;
+            }
+
+            public String getLabel() {
+                return label;
+            }
+
+            public String getVersion() {
+                return version;
+            }
+
+            public String getPackageName() {
+                return packageName;
+            }
+        }
+    }
+
+        private class ViewHolder{
+            TextView packageName;
+            TextView version;
+            TextView label;
+            ImageView icon;
+            CheckBox checkBox;
+        }
+        public class MyClickListener implements View.OnClickListener {
+            protected int position;
+            private MyClickListener(){}
+            @Override
+            public void onClick(View view) {
+                    isCheckedTag.set(position,((CheckBox)view).isChecked());
+                }
+            }
+        }
+
+//fragment_list.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.testingapp.send_appname_activityFragment"
+    tools:showIn="@layout/activity_send_appname_activity">
+
+        <ImageView
+            android:id="@+id/image"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_toRightOf="@+id/image"
+            android:layout_marginLeft="10dp">
+            <TextView
+                android:id="@+id/label"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content" />
+            <TextView
+                android:id="@+id/packageName"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content" />
+            <TextView
+                android:id="@+id/version"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"/>
+        </LinearLayout>
+        <CheckBox
+            android:id="@+id/checkbox"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:focusable="false" />
+</RelativeLayout>
+
+//list_view_layout.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.testingapp.List_ActivityFragment"
+    tools:showIn="@layout/activity_list_">
+
+    <LinearLayout
+        android:id="@+id/two_piece"
+        android:orientation="horizontal"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent">
+        <EditText
+            android:id="@+id/add_new"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:hint="@string/add_new"/>
+        <Button
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="@string/search"
+            android:onClick="displayMessage"/>
+    </LinearLayout>
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/two_piece">
+    </ListView>
+
+</RelativeLayout>
+
+//fragment_send_appname_activity.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.testingapp.send_appname_activityFragment"
+    tools:showIn="@layout/activity_send_appname_activity">
+
+    <LinearLayout
+        android:id="@+id/two_piece"
+        android:orientation="horizontal"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent">
+        <EditText
+            android:id="@+id/add_new"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:hint="@string/add_new"/>
+        <Button
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="@string/add"
+            android:onClick="displayMessage"/>
+    </LinearLayout>
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/two_piece">
+    </ListView>
+
+</RelativeLayout>
+
+
+
+
+
