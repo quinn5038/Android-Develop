@@ -1,0 +1,304 @@
+//List_Activity.java
+package com.example.testingapp;
+
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.Filter;
+import android.widget.Filterable;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+public class List_Activity extends AppCompatActivity {
+    List<PackageInfo> allInfo;
+    List<PackageInfo> installedInfo;
+    List<PackageInfo> mInstalledCopy;
+    List<Boolean>isCheckedTag;
+    PackageManager pm;
+    ListView listView;
+    MyAdapter adapter;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_list_);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();
+            }
+        });
+        pm = getPackageManager();
+        listView = (ListView) findViewById(R.id.listView);
+        allInfo = pm.getInstalledPackages(pm.GET_META_DATA);
+        installedInfo = pm.getInstalledPackages(0);
+
+        //过滤安装和未安装软件并存入installedInfo里面
+        try {
+            installedInfo.clear();
+            for (int n = 0; n < allInfo.size(); n++)
+            {
+                PackageInfo PackInfo = allInfo.get(n);
+                if (((PackInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) != true)
+                //check weather it is system app or user installed app
+                {
+                    try
+                    {
+                        installedInfo.add(allInfo.get(n)); // add in 2nd list if it is user installed app
+                        Collections.sort(installedInfo,new Comparator<PackageInfo>()
+                                // this will sort App list on the basis of app name
+                        {
+                            public int compare(PackageInfo o1,PackageInfo o2)
+                            {
+                                return o1.applicationInfo.loadLabel(getPackageManager()).toString()
+                                        .compareToIgnoreCase(o2.applicationInfo.loadLabel(getPackageManager())
+                                                .toString());// compare and return sorted packagelist.
+                            }
+                        });
+                    } catch (NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        mInstalledCopy = installedInfo;
+        EditText editSearch = (EditText)findViewById(R.id.search_new);
+        editSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                List_Activity.this.adapter.getFilter().filter(charSequence);
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+
+            }
+        });
+        isCheckedTag = new ArrayList<>();
+        for(int i=0; i< installedInfo.size();i++){
+            isCheckedTag.add(false);}
+        adapter = new MyAdapter(this);
+        listView.setAdapter(adapter);
+
+    }
+    public class MyAdapter extends BaseAdapter implements Filterable {
+        private LayoutInflater inflater;
+
+        public MyAdapter(Context context){
+            super();
+            this.inflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount() {
+            return installedInfo.size();
+        }
+        public View getView(final int position, View convertView, ViewGroup viewGroup) {
+            final ViewHolder holder;
+            final InfoHolder info_holder = new InfoHolder(position);
+            if (convertView == null) {
+                convertView = inflater.inflate(R.layout.fragment_list_, null);
+                holder = new ViewHolder();
+                holder.packageName = (TextView) convertView
+                        .findViewById(R.id.packageName);
+                holder.version = (TextView) convertView
+                        .findViewById(R.id.version);
+                holder.label = (TextView) convertView
+                        .findViewById(R.id.label);
+                holder.icon = (ImageView)convertView.findViewById(R.id.image);
+                holder.checkBox= (CheckBox) convertView.findViewById(R.id.checkbox);
+
+            } else {
+                holder = (ViewHolder) convertView.getTag();
+            }
+
+            MyClickListener mListener = new MyClickListener();
+            mListener.position = position;
+            holder.checkBox.setOnClickListener(mListener);
+            holder.checkBox.setChecked(isCheckedTag.get(position));
+
+            holder.icon.setImageDrawable(info_holder.getIcon());
+            holder.packageName.setText(info_holder.getPackageName());
+            holder.version.setText(info_holder.getVersion());
+            holder.label.setText(info_holder.getLabel());
+            
+
+            convertView.setTag(holder);
+            return convertView;
+        }
+
+        public Object getItem(int position) {
+            return installedInfo.get(position);
+        }
+
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public Filter getFilter() {
+            Filter filter = new Filter() {
+                @Override
+                protected FilterResults performFiltering(CharSequence constraint) {
+                    FilterResults result = new FilterResults();
+                    if(constraint == null || constraint.length() == 0){
+                        result.values = mInstalledCopy;
+                        result.count = mInstalledCopy.size();
+                    }else{
+                        ArrayList<PackageInfo> filteredInfo = new ArrayList<>();
+                        for(PackageInfo j:mInstalledCopy){
+                            if(j.packageName.contains(constraint)){
+                                filteredInfo.add(j);
+                            }else if(pm.getApplicationLabel(j.applicationInfo).toString().contains(constraint)){
+                                filteredInfo.add(j);
+                            }
+                        }
+                        result.values = filteredInfo;
+                        result.count = filteredInfo.size();
+                    }
+                    return result;
+                }
+
+                @Override
+                protected void publishResults(CharSequence constraint, FilterResults results) {
+                    if(results.count == 0){
+                        installedInfo = mInstalledCopy;
+                        adapter.notifyDataSetChanged();
+                    }else{
+                        installedInfo = (ArrayList<PackageInfo>)results.values;
+                        adapter.notifyDataSetChanged();
+                    }
+                }
+            };
+            return filter;
+        }
+
+
+        private class InfoHolder{
+            PackageInfo info;
+            String version = "";
+            String label = "";
+            ApplicationInfo app_info;
+            Drawable icon;
+            String packageName;
+            public InfoHolder(int position) {
+                this.info = installedInfo.get(position);
+                packageName = info.packageName;
+                version = info.versionName;
+                app_info = info.applicationInfo;
+                label = pm.getApplicationLabel(app_info).toString();
+                icon = pm.getApplicationIcon(app_info);
+            }
+            public Drawable getIcon() {
+                return icon;
+            }
+
+            public String getLabel() {
+                return label;
+            }
+
+            public String getVersion() {
+                return version;
+            }
+
+            public String getPackageName() {
+                return packageName;
+            }
+        }
+    }
+
+        private class ViewHolder{
+            TextView packageName;
+            TextView version;
+            TextView label;
+            ImageView icon;
+            CheckBox checkBox;
+        }
+        public class MyClickListener implements View.OnClickListener {
+            protected int position;
+            @Override
+            public void onClick(View view) {
+                    isCheckedTag.set(position,((CheckBox)view).isChecked());
+                }
+            }
+    }
+
+//App_Menifest.xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.testingapp">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".List_Activity"
+            android:label="@string/app_name"
+            android:theme="@style/AppTheme.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".SearchableActivity"
+            android:parentActivityName=".List_Activity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <action android:name="android.intent.action.SEARCH"/>
+                <meta-data android:name="android.app.searchable"
+                    android:resource="@layout/searchable"/>
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".sendAppnameActivity"
+            android:label="@string/title_activity_send_appname_activity"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
+
+    </application>
+
+</manifest>
+
+
+
+
+
+
+
