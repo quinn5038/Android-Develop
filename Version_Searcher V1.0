@@ -1,0 +1,721 @@
+//mainActivity.java
+package com.quinn.version_searcher;
+
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.os.Handler;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import java.util.ArrayList;
+import java.util.List;
+public class mainActivity extends AppCompatActivity {
+
+    private ListView listView;
+    private List<Node> mNode;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main_);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        try {
+            updateMnode();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        listView = (ListView) findViewById(R.id.listView);
+        MyAdapter sAdapter = new MyAdapter(this);
+        listView.setAdapter(sAdapter);
+        sAdapter.notifyDataSetChanged();
+    }
+
+
+    public void OpenSetting(View view) {
+        Intent intent = new Intent(mainActivity.this, List_Activity.class);
+        startActivity(intent);
+
+    }
+
+    public class MyAdapter extends BaseAdapter {
+        private LayoutInflater inflater;
+
+        public MyAdapter(Context context) {
+            super();
+            this.inflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount() {
+            return mNode.size();
+        }
+
+        public View getView(int position, View convertView, ViewGroup viewGroup) {
+            ViewHolder holder;
+            if (convertView == null) {
+                convertView = inflater.inflate(R.layout.main_list_inside_layout, null);
+                holder = new ViewHolder();
+                holder.packageName = (TextView) convertView
+                        .findViewById(R.id.packageName);
+                holder.version = (TextView) convertView
+                        .findViewById(R.id.version);
+                holder.label = (TextView) convertView
+                        .findViewById(R.id.label);
+                holder.icon = (ImageView) convertView.findViewById(R.id.image);
+                convertView.setTag(holder);
+
+            } else {
+                holder = (ViewHolder) convertView.getTag();
+            }
+
+            holder.icon.setImageDrawable(mNode.get(position).getIcon());
+            holder.packageName.setText(mNode.get(position).getPackageName());
+            holder.version.setText(mNode.get(position).getVersion());
+            holder.label.setText(mNode.get(position).getLabel());
+
+            return convertView;
+        }
+
+        public Object getItem(int position) {
+            return mNode.get(position);
+        }
+
+        public long getItemId(int position) {
+            return position;
+        }
+
+        private class ViewHolder {
+            TextView packageName;
+            TextView version;
+            TextView label;
+            ImageView icon;
+        }
+    }
+
+    public ArrayList<Node> parseJSONtoArray(String jsonString) throws JSONException {
+        ArrayList<Node> nodeList = new ArrayList<>();
+        JSONArray jsonarray = new JSONArray(jsonString);
+        for (int i = 0; i < jsonarray.length(); i++) {
+            JSONObject jo = jsonarray.getJSONObject(i);
+            String packageName = (String) jo.get("PackageName");
+            Node node = new Node(packageName);
+            nodeList.add(node);
+        }
+        return nodeList;
+    }
+
+    public void updateMnode() throws JSONException {
+        SharedPreferences sp = getSharedPreferences("Testing APP Preference", MODE_PRIVATE);
+        String jsonString = sp.getString("Nodes", "");
+        if(jsonString.equals("")){
+            jsonString = "[]";
+        }
+        mNode = parseJSONtoArray(jsonString);
+    }
+
+    public class Node {
+        PackageInfo info;
+        String version = "";
+        String label = "";
+        ApplicationInfo app_info;
+        Drawable icon;
+        String packageName;
+        PackageManager pm;
+
+        public Node(String packageName) {
+            this.packageName = packageName;
+            pm = getPackageManager();
+            try {
+                info = pm.getPackageInfo(packageName, 0);
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+            version = info.versionName;
+            app_info = info.applicationInfo;
+            label = pm.getApplicationLabel(app_info).toString();
+            icon = pm.getApplicationIcon(app_info);
+        }
+
+        public Drawable getIcon() {
+            return icon;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public String getVersion() {
+            return version;
+        }
+
+        public String getPackageName() {
+            return packageName;
+        }
+    }
+
+    private Boolean exit = false;
+
+    public void onBackPressed() {
+        if (exit) {
+            finish();
+        } else {
+            Toast.makeText(this, "再按一次退出程序", Toast.LENGTH_SHORT).show();
+            exit = true;
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    exit = false;
+                }
+            }, 3 * 1000);
+        }
+
+    }
+}
+
+
+//List_Activity.java
+package com.quinn.version_searcher;
+
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.BaseAdapter;
+import android.widget.EditText;
+import android.widget.Filter;
+import android.widget.Filterable;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class List_Activity extends AppCompatActivity {
+    List<PackageInfo> allInfo;
+    List<Node> mNode;
+    List<Node> mNodeCP;
+    PackageManager pm;
+    ListView listView;
+    MyAdapter adapter;
+    static final String PREF_NAME = "Testing APP Preference";
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        Log.i("mnodeval", "mnode is " + mNode);
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_list_);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        pm = getPackageManager();
+        listView = (ListView) findViewById(R.id.listView);
+        allInfo = pm.getInstalledPackages(pm.GET_META_DATA);
+        mNode = new ArrayList<>();
+        for (PackageInfo j : allInfo) {
+            mNode.add(new Node(allInfo.indexOf(j)));
+        }
+        try {
+            updateMnode();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        mNodeCP = mNode;
+        adapter = new MyAdapter(this);
+        listView.setAdapter(adapter);
+
+        EditText editSearch = (EditText) findViewById(R.id.search_new);
+        editSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                List_Activity.this.adapter.getFilter().filter(charSequence);
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+
+            }
+        });
+    }
+
+    public class MyAdapter extends BaseAdapter implements Filterable {
+        private LayoutInflater inflater;
+
+        public MyAdapter(Context context) {
+            super();
+            this.inflater = LayoutInflater.from(context);
+        }
+
+        //需要注意count中的个数和list关联，需要同步更改
+        @Override
+        public int getCount() {
+            return mNode.size();
+        }
+
+        public View getView(int position, View convertView, ViewGroup viewGroup) {
+            ViewHolder holder;
+            if (convertView == null) {
+                convertView = inflater.inflate(R.layout.list_inside_layout, null);
+                holder = new ViewHolder();
+                holder.packageName = (TextView) convertView
+                        .findViewById(R.id.packageName);
+                holder.version = (TextView) convertView
+                        .findViewById(R.id.version);
+                holder.label = (TextView) convertView
+                        .findViewById(R.id.label);
+                holder.icon = (ImageView) convertView.findViewById(R.id.image_list);
+            } else {
+                holder = (ViewHolder) convertView.getTag();
+            }
+            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
+                    if (mNode.get(position).isSelected) {
+                        view.findViewById(R.id.checkbox).setVisibility(View.GONE);
+                        mNode.get(position).isSelected = false;
+                    } else {
+                        view.findViewById(R.id.checkbox).setVisibility(View.VISIBLE);
+                        mNode.get(position).isSelected = true;
+                    }
+                }
+
+            });
+            Node n = mNode.get(position);
+            holder.icon.setImageDrawable(n.getIcon());
+            holder.packageName.setText(n.getPackageName());
+            holder.version.setText(n.getVersion());
+            holder.label.setText(n.getLabel());
+
+            if (n.isSelected) {
+                convertView.findViewById(R.id.checkbox).setVisibility(View.VISIBLE);
+            } else {
+                convertView.findViewById(R.id.checkbox).setVisibility(View.GONE);
+            }
+            convertView.setTag(holder);
+            return convertView;
+        }
+
+        public Object getItem(int position) {
+            return mNode.get(position);
+        }
+
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public Filter getFilter() {
+            Filter filter = new Filter() {
+                @Override
+                protected FilterResults performFiltering(CharSequence constraint) {
+                    FilterResults result = new FilterResults();
+                    if (constraint == null || constraint.length() == 0) {
+                        result.values = mNodeCP;
+                        result.count = mNodeCP.size();
+                    } else {
+                        ArrayList<Node> filteredInfo = new ArrayList<>();
+                        for (int i = 0; i < mNodeCP.size(); i++) {
+                            if (mNodeCP.get(i).getPackageName().contains(constraint)) {
+                                filteredInfo.add(mNodeCP.get(i));
+                            } else if (mNodeCP.get(i).getLabel().contains(constraint)) {
+                                filteredInfo.add(mNodeCP.get(i));
+                            }
+                        }
+                        result.values = filteredInfo;
+                        result.count = filteredInfo.size();
+                    }
+                    return result;
+                }
+
+                @Override
+                protected void publishResults(CharSequence constraint, FilterResults results) {
+                    if (results.count == 0) {
+                        mNode = mNodeCP;
+                        adapter.notifyDataSetChanged();
+                    } else {
+                        mNode = (ArrayList<Node>) results.values;
+                        adapter.notifyDataSetChanged();
+                    }
+                }
+            };
+            return filter;
+        }
+    }
+
+    private class ViewHolder {
+        TextView packageName;
+        TextView version;
+        TextView label;
+        ImageView icon;
+    }
+
+    public class Node {
+        PackageInfo info;
+        String version = "";
+        String label = "";
+        ApplicationInfo app_info;
+        Drawable icon;
+        String packageName;
+        boolean isSelected;
+        int position;
+
+        public Node(int position) {
+            this.position = position;
+            this.info = allInfo.get(position);
+            packageName = info.packageName;
+            version = info.versionName;
+            app_info = info.applicationInfo;
+            label = pm.getApplicationLabel(app_info).toString();
+            icon = pm.getApplicationIcon(app_info);
+        }
+
+        public Drawable getIcon() {
+            return icon;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public String getVersion() {
+            return version;
+        }
+
+        public String getPackageName() {
+            return packageName;
+        }
+    }
+
+    public void OpenDefaultActivity(View view) throws IOException, JSONException {
+        SharedPreferences sp = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = sp.edit();
+        editor.putString("Nodes", toJSON().toString());
+        editor.apply();
+        Intent intent = new Intent(List_Activity.this, mainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
+    }
+
+    public JSONArray toJSON() throws JSONException {
+        JSONArray json = new JSONArray();
+        for (int i = 0; i < mNode.size(); i++) {
+            if (mNode.get(i).isSelected) {
+                mNodeCP.get(mNode.get(i).position).isSelected = true;
+            }
+        }
+        for(int i = 0;i<mNodeCP.size();i++) {
+            if (mNodeCP.get(i).isSelected) {
+                JSONObject selectedPN = new JSONObject();
+                selectedPN.put("PackageName", mNodeCP.get(i).getPackageName());
+                json.put(selectedPN);
+            }
+        }
+        return json;
+    }
+    public void updateMnode() throws JSONException {
+        SharedPreferences sp = getSharedPreferences("Testing APP Preference", MODE_PRIVATE);
+        String jsonString = sp.getString("Nodes", "");
+        JSONArray jsonarray = new JSONArray(jsonString);
+        for (int i = 0; i < jsonarray.length(); i++) {
+            JSONObject jo = jsonarray.getJSONObject(i);
+            String packageName = (String) jo.get("PackageName");
+            for(Node n :mNode){
+                if(n.getPackageName().equals(packageName)){
+                    n.isSelected = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    public void DeleteAll(View view){
+        for(Node n:mNode){
+            n.isSelected = false;
+        }
+        for(Node n:mNodeCP){
+            n.isSelected = false;
+        }
+        adapter.notifyDataSetChanged();
+    }
+
+
+}
+
+
+
+
+
+//fragment_main_activity.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context=".mainActivity"
+    tools:showIn="@layout/activity_main_">
+
+    <LinearLayout
+        android:id="@+id/two_piece"
+        android:orientation="horizontal"
+        android:layout_height="55dp"
+        android:layout_width="match_parent">
+        <TextView
+            android:id="@+id/add_new"
+            android:layout_weight="2"
+            android:layout_height="match_parent"
+            android:layout_width="wrap_content"
+            android:hint="@string/instruction"/>
+        <Button
+            android:id="@+id/auto"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="@string/defalt_setting"
+            android:onClick="OpenSetting"/>
+    </LinearLayout>
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/two_piece"
+        android:layout_marginTop="10dp">
+    </ListView>
+
+</RelativeLayout>
+
+//fragment_search_activity.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context=".List_ActivityFragment"
+    tools:showIn="@layout/activity_list_">
+
+    <LinearLayout
+        android:id="@+id/two_piece"
+        android:orientation="horizontal"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent">
+        <EditText
+            android:id="@+id/search_new"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:hint="@string/search_new"/>
+        <Button
+            android:id="@+id/autoback"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="@string/add_default"
+            android:onClick="OpenDefaultActivity"/>
+        <Button
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:text="@string/delete_all"
+            android:onClick="DeleteAll"/>
+    </LinearLayout>
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/two_piece">
+    </ListView>
+
+</RelativeLayout>
+
+//list_inside_layout.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context=".mainActivity"
+    tools:showIn="@layout/activity_list_">
+
+        <ImageView
+            android:id="@+id/image_list"
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:scaleType="fitXY" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_toRightOf="@+id/image_list"
+            android:layout_marginLeft="10dp">
+            <TextView
+                android:id="@+id/label"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content" />
+            <TextView
+                android:id="@+id/packageName"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:layout_marginRight="50dp"/>
+            <TextView
+                android:id="@+id/version"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"/>
+        </LinearLayout>
+
+    <ImageView
+        android:id="@+id/checkbox"
+        android:src="@mipmap/ic_check"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
+        android:focusable="false"
+        android:visibility="gone"/>
+</RelativeLayout>
+
+//main_list_activity.xml
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context=".mainActivity"
+    tools:showIn="@layout/activity_main_">
+
+    <ImageView
+        android:id="@+id/image"
+        android:layout_width="60dp"
+        android:layout_height="wrap_content"
+        android:scaleType="fitXY" />
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_toRightOf="@id/image"
+        android:layout_marginLeft="10dp">
+        <RelativeLayout
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:text="@string/label_text"/>
+            <TextView
+                android:id="@+id/label"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:layout_marginLeft="50dp"/>
+        </RelativeLayout>
+        <RelativeLayout
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:text="@string/pn_text"/>
+            <TextView
+                android:id="@+id/packageName"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:layout_marginLeft="50dp"/>
+        </RelativeLayout>
+        <RelativeLayout
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:text="@string/version_text"/>
+            <TextView
+                android:id="@+id/version"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:layout_marginLeft="50dp"/>
+        </RelativeLayout>
+    </LinearLayout>
+</RelativeLayout>
+
+//AndroidMenifest.xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.quinn.version_searcher">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_version_searcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name="com.quinn.version_searcher.List_Activity"
+            android:label="@string/List_Activity"
+            android:theme="@style/AppTheme.NoActionBar">
+
+        </activity>
+
+        <activity
+            android:name=".mainActivity"
+            android:label="@string/app_name"
+            android:theme="@style/AppTheme.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
